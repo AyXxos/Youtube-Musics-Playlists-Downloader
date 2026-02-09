@@ -13,6 +13,7 @@ YouTube Music Downloader is a Python script that allows you to easily download a
 - ✅ Automatic MP3 conversion
 - ✅ Maximum audio quality (320 kbps)
 - ✅ Automatic organization of downloaded files
+- ✅ Automatic album art embedding from YouTube thumbnail
 - ✅ Simple command-line interface
 
 ## 🔧 Prerequisites
@@ -90,13 +91,15 @@ sudo pacman -S ffmpeg
 Open a terminal/command prompt in the project folder and run:
 
 ```bash
-pip install yt-dlp pydantic
+pip install yt-dlp pydantic requests mutagen
 ```
 
 Or create a `requirements.txt` file with the following content:
 ```
 yt-dlp>=2024.0.0
 pydantic>=2.0.0
+requests>=2.25.0
+mutagen>=1.45.0
 ```
 
 Then install with:
@@ -161,6 +164,7 @@ The script uses the following default settings:
 - **Audio format**: MP3
 - **Quality**: 320 kbps
 - **Output folder**: `./YoutubeMusicDownloader/downloads`
+- **Album art**: Automatically embedded from YouTube thumbnail
 
 To modify these settings, edit the values in the `downloader.py` file:
 ```python
