@@ -91,20 +91,12 @@ sudo pacman -S ffmpeg
 Open a terminal/command prompt in the project folder and run:
 
 ```bash
-pip install yt-dlp pydantic requests mutagen
-```
-
-Or create a `requirements.txt` file with the following content:
-```
-yt-dlp>=2024.0.0
-pydantic>=2.0.0
-requests>=2.25.0
-mutagen>=1.45.0
-```
-
-Then install with:
-```bash
 pip install -r requirements.txt
+```
+
+Or install directly:
+```bash
+pip install yt-dlp pydantic requests mutagen pillow
 ```
 
 ## 🚀 Usage

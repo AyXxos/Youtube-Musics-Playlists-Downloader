@@ -8,6 +8,9 @@ from pydantic import BaseModel, Field
 import requests
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, APIC
+from PIL import Image
+from io import BytesIO
+import time
 
 class DownloadOptions(BaseModel):
     url: str = Field(..., description="The URL of the YouTube video or playlist to download.")
@@ -42,17 +45,47 @@ class YoutubeMusicDownloader:
             mp3_file = None
             output_dir = Path(self.options.output_dir)
             
+            # Wait a moment for the MP3 file to be created
+            time.sleep(1)
+            
+            # Find thumbnail files to clean up later
+            thumbnail_files = list(output_dir.glob(f"{video_title}*.webp")) + \
+                            list(output_dir.glob(f"{video_title}*.jpg")) + \
+                            list(output_dir.glob(f"{video_title}*.png"))
+            
             # Find the MP3 file with matching title
             for file in output_dir.glob(f"{video_title}*"):
                 if file.suffix.lower() == '.mp3':
                     mp3_file = file
                     break
             
+            # If not found with glob, try a more permissive search
+            if not mp3_file:
+                mp3_files = list(output_dir.glob("*.mp3"))
+                if mp3_files:
+                    # Get the most recently modified MP3 file
+                    mp3_file = max(mp3_files, key=lambda p: p.stat().st_mtime)
+            
             if not mp3_file or not mp3_file.exists():
+                print(f"Warning: MP3 file not found for '{video_title}'")
                 return False
             
             # Download thumbnail image
-            thumbnail_data = requests.get(thumbnail_url).content
+            thumbnail_response = requests.get(thumbnail_url)
+            thumbnail_data = thumbnail_response.content
+            
+            # Convert thumbnail to JPEG if needed
+            try:
+                img = Image.open(BytesIO(thumbnail_data))
+                # Convert to RGB if necessary (for PNG with alpha channel, etc.)
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                # Save as JPEG
+                jpeg_buffer = BytesIO()
+                img.save(jpeg_buffer, format='JPEG', quality=95)
+                thumbnail_data = jpeg_buffer.getvalue()
+            except Exception as e:
+                print(f"Note: Could not convert thumbnail to JPEG, using original: {e}")
             
             # Embed as album art
             audio = MP3(str(mp3_file), ID3=ID3)
@@ -60,6 +93,9 @@ class YoutubeMusicDownloader:
             # Create ID3 tag if it doesn't exist
             if audio.tags is None:
                 audio.add_tags()
+            
+            # Remove existing pictures to avoid duplicates
+            audio.tags.delall('APIC')
             
             # Add thumbnail image
             audio.tags.add(APIC(
@@ -71,6 +107,17 @@ class YoutubeMusicDownloader:
             ))
             
             audio.tags.save(str(mp3_file), v2_version=3)
+            print(f"Thumbnail embedded successfully in '{mp3_file.name}'")
+            
+            # Clean up thumbnail files
+            for thumb_file in thumbnail_files:
+                try:
+                    if thumb_file.exists():
+                        thumb_file.unlink()
+                        print(f"Deleted thumbnail: {thumb_file.name}")
+                except Exception as e:
+                    print(f"Could not delete {thumb_file.name}: {e}")
+            
             return True
         except Exception as e:
             print(f"Error embedding thumbnail: {e}")
