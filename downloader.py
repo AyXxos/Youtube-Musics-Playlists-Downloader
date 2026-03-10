@@ -153,7 +153,7 @@ class YoutubeMusicDownloader:
 if __name__ == "__main__":
     options = DownloadOptions(
         url= str(input("Enter YouTube URL: ")),
-        output_dir="./YoutubeMusicDownloader/downloads",
+        output_dir="./downloads",
         audio_format="mp3",
         quality="320",
         playlist=str(input("Is it a playlist? (yes/no): ")).lower() == 'yes'
