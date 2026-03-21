@@ -45,13 +45,11 @@ class YoutubeMusicDownloader:
         return sanitized[:180] if sanitized else "unknown"
 
     def _clean_track_title(self, track_title: str) -> str:
-        cleaned_title = re.sub(
-            r'\s*[\(\[]\s*(official\s*(music\s*)?video|lyrics?|audio|mv|hd|4k|visualizer)\s*[\)\]]',
-            '',
-            track_title,
-            flags=re.IGNORECASE,
-        )
-        cleaned_title = re.sub(r'\s+', ' ', cleaned_title).strip(' -_')
+        cleaned_title = re.sub(r'\s*\([^)]*\)', '', track_title)
+        cleaned_title = re.sub(r'\s*\[[^\]]*\]', '', cleaned_title)
+        cleaned_title = re.sub(r'\s+', ' ', cleaned_title)
+        cleaned_title = re.sub(r'\s*[-–—|:]\s*$', '', cleaned_title)
+        cleaned_title = cleaned_title.strip(' -_')
         return cleaned_title or track_title
 
     def _parse_artist_track_from_title(self, raw_title: str) -> tuple[Optional[str], str]:
