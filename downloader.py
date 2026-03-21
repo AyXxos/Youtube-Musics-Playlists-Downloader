@@ -7,7 +7,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 import requests
 from mutagen.mp3 import MP3
-from mutagen.id3 import ID3, APIC
+from mutagen.id3 import ID3, APIC, TPE1
 from PIL import Image
 from io import BytesIO
 import time
@@ -39,8 +39,8 @@ class YoutubeMusicDownloader:
         }
         return ydl_opts
 
-    def _embed_thumbnail(self, video_title: str, thumbnail_url: str) -> bool:
-        """Download and embed thumbnail as album art in the MP3 file."""
+    def _embed_thumbnail(self, video_title: str, thumbnail_url: str, artist_name: Optional[str] = None) -> bool:
+        """Download and embed thumbnail as album art and artist metadata in the MP3 file."""
         try:
             mp3_file = None
             output_dir = Path(self.options.output_dir)
@@ -105,6 +105,13 @@ class YoutubeMusicDownloader:
                 desc=u'Cover',
                 data=thumbnail_data
             ))
+
+            if artist_name:
+                audio.tags.delall('TPE1')
+                audio.tags.add(TPE1(
+                    encoding=3,
+                    text=[artist_name]
+                ))
             
             audio.tags.save(str(mp3_file), v2_version=3)
             print(f"Thumbnail embedded successfully in '{mp3_file.name}'")
@@ -129,21 +136,22 @@ class YoutubeMusicDownloader:
             with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
                 # Get video info to extract thumbnail
                 info = ydl.extract_info(self.options.url, download=True)
-                
-                # Handle playlist or single video
-                if isinstance(info, list):
-                    # Playlist
-                    for video in info:
+
+                if isinstance(info, dict) and info.get('entries'):
+                    for video in info.get('entries', []):
+                        if not video:
+                            continue
                         title = video.get('title', 'unknown')
                         thumbnail = video.get('thumbnail')
+                        artist_name = video.get('channel') or video.get('uploader')
                         if thumbnail:
-                            self._embed_thumbnail(title, thumbnail)
+                            self._embed_thumbnail(title, thumbnail, artist_name)
                 else:
-                    # Single video
                     title = info.get('title', 'unknown')
                     thumbnail = info.get('thumbnail')
+                    artist_name = info.get('channel') or info.get('uploader')
                     if thumbnail:
-                        self._embed_thumbnail(title, thumbnail)
+                        self._embed_thumbnail(title, thumbnail, artist_name)
             
             return "Download completed successfully."
         except DownloadError as e:
@@ -153,7 +161,7 @@ class YoutubeMusicDownloader:
 if __name__ == "__main__":
     options = DownloadOptions(
         url= str(input("Enter YouTube URL: ")),
-        output_dir="./YoutubeMusicDownloader/downloads",
+        output_dir="./downloads",
         audio_format="mp3",
         quality="320",
         playlist=str(input("Is it a playlist? (yes/no): ")).lower() == 'yes'
