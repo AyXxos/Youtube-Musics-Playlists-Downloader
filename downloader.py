@@ -52,6 +52,23 @@ class YoutubeMusicDownloader:
         cleaned_title = cleaned_title.strip(' -_')
         return cleaned_title or track_title
 
+    def _format_artist_metadata(self, artist_value: str) -> str:
+        normalized_artist = re.sub(r'\s+', ' ', artist_value).strip()
+        normalized_artist = re.sub(r'\s+(feat\.?|featuring|ft\.?)\s+', '/', normalized_artist, flags=re.IGNORECASE)
+        normalized_artist = re.sub(r'\s*(,|&| and | x |;|\|)\s*', '/', normalized_artist, flags=re.IGNORECASE)
+
+        artist_parts = [part.strip() for part in normalized_artist.split('/') if part.strip()]
+        unique_artists: list[str] = []
+        seen: set[str] = set()
+
+        for artist in artist_parts:
+            key = artist.lower()
+            if key not in seen:
+                seen.add(key)
+                unique_artists.append(artist)
+
+        return '/'.join(unique_artists) if unique_artists else artist_value
+
     def _parse_artist_track_from_title(self, raw_title: str) -> tuple[Optional[str], str]:
         normalized_title = re.sub(r'\s+', ' ', raw_title).strip()
         separators = [' - ', ' – ', ' — ', ' | ', ': ']
@@ -60,7 +77,7 @@ class YoutubeMusicDownloader:
             if separator in normalized_title:
                 left_part, right_part = normalized_title.split(separator, 1)
                 if len(left_part.strip()) > 1 and len(right_part.strip()) > 1:
-                    artist_name = re.sub(r'\s+(ft\.?|feat\.?|featuring)\s+.+$', '', left_part.strip(), flags=re.IGNORECASE)
+                    artist_name = left_part.strip()
                     track_title = self._clean_track_title(right_part.strip())
                     return artist_name.strip(), track_title
 
@@ -193,10 +210,11 @@ class YoutubeMusicDownloader:
             ))
 
             if artist_name:
+                formatted_artist = self._format_artist_metadata(artist_name)
                 audio.tags.delall('TPE1')
                 audio.tags.add(TPE1(
                     encoding=3,
-                    text=[artist_name]
+                    text=[formatted_artist]
                 ))
 
             if track_title:
